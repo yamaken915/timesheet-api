@@ -76,14 +76,10 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
             logging.info(f"Form parsed successfully")
             logging.info(f"Form keys: {list(form.keys())}")
             logging.info(f"Files keys: {list(files.keys())}")
-        except Exception as parse_error:
-            logging.error(f"Error parsing form data: {parse_error}")
-            logging.exception("Parse traceback:")
-            raise
-        
-        # ファイルの取得
-        uploaded_files = files.getlist("files")
-        logging.info(f"Files received: {len(uploaded_files)}")
+            
+            # ファイルの取得
+            uploaded_files = files.getlist("files")
+            logging.info(f"Files received: {len(uploaded_files)}")
         
         # フォームデータの取得
         name = form.get("name")
@@ -307,20 +303,29 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
         output_filename = f"タイムシート({year:04d}_{month:02d})_{safe_eid}.xlsx"
         output_stream = io.BytesIO()
         wb.save(output_stream)
-        output_stream.seek(0)
+        output_bytes = output_stream.getvalue()
+        output_stream.close()
+        
+        logging.info(f"Excel file created, size: {len(output_bytes)} bytes")
         
         response = func.HttpResponse(
-            body=output_stream.getvalue(),
+            body=output_bytes,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             status_code=200
         )
         response.headers['Content-Disposition'] = f'attachment; filename="{output_filename}"'
+        response.headers['Content-Length'] = str(len(output_bytes))
+        logging.info("Response prepared, returning...")
         return add_cors_headers(response)
         
     except Exception as e:
-        logging.error(f"Error in generate_timesheet: {str(e)}")
+        error_msg = str(e)
+        logging.error(f"Error in generate_timesheet: {error_msg}")
         logging.exception("Full traceback:")
-        response = func.HttpResponse(f"エラーが発生しました: {str(e)}", status_code=500)
+        try:
+            response = func.HttpResponse(f"エラーが発生しました: {error_msg}", status_code=500)
+        except:
+            response = func.HttpResponse("エラーが発生しました", status_code=500)
         return add_cors_headers(response)
 
 @app.route(route="holidays", methods=["GET"])
