@@ -8,6 +8,8 @@ import os
 import io
 import logging
 import json
+from werkzeug.formparser import parse_form_data
+from werkzeug.datastructures import Headers
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -52,42 +54,44 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"Request method: {req.method}")
         logging.info(f"Content-Type: {req.headers.get('Content-Type')}")
         
-        # フォームデータの取得
-        logging.info(f"req.files type: {type(req.files)}")
-        logging.info(f"req.files dir: {dir(req.files)}")
+        # werkzeugを使ってフォームデータをパース
+        environ = {
+            'REQUEST_METHOD': req.method,
+            'CONTENT_TYPE': req.headers.get('Content-Type', ''),
+            'CONTENT_LENGTH': req.headers.get('Content-Length', '0'),
+            'wsgi.input': io.BytesIO(req.get_body())
+        }
         
-        try:
-            files = req.files.getlist("files")
-            logging.info(f"getlist succeeded, files: {files}")
-        except AttributeError as ae:
-            logging.error(f"getlist not available: {ae}")
-            # Try alternative approach
-            files = []
-            for key in req.files.keys():
-                logging.info(f"File key: {key}")
-                files.extend(req.files.getlist(key))
-            logging.info(f"Files collected via keys: {files}")
-        except Exception as fe:
-            logging.error(f"Error getting files: {fe}")
-            raise
+        headers = Headers()
+        for key, value in req.headers.items():
+            headers[key] = value
             
-        logging.info(f"Files received: {len(files) if files else 0}")
-        name = req.form.get("name")
-        eid = req.form.get("eid")
-        organization = req.form.get("organization")
+        stream, form, files = parse_form_data(environ)
+        
+        logging.info(f"Form keys: {list(form.keys())}")
+        logging.info(f"Files keys: {list(files.keys())}")
+        
+        # ファイルの取得
+        uploaded_files = files.getlist("files")
+        logging.info(f"Files received: {len(uploaded_files)}")
+        
+        # フォームデータの取得
+        name = form.get("name")
+        eid = form.get("eid")
+        organization = form.get("organization")
         logging.info(f"Form data - name: {name}, org: {organization}")
-        year = int(req.form.get("year"))
-        month = int(req.form.get("month"))
+        year = int(form.get("year"))
+        month = int(form.get("month"))
         logging.info(f"Date - year: {year}, month: {month}")
-        task = req.form.get("task")
-        time_mode = req.form.get("time_mode", "none")  # "none", "ratio", "fixed"
+        task = form.get("task")
+        time_mode = form.get("time_mode", "none")  # "none", "ratio", "fixed"
         ratio_day_fraction = None
         fixed_hours_fraction = None
         additional_breaks = []
 
         # 時間モードのバリデーション
         if time_mode == "ratio":
-            ratio_percent_raw = req.form.get("ratio_percent")
+            ratio_percent_raw = form.get("ratio_percent")
             try:
                 ratio_percent = float(ratio_percent_raw)
             except (TypeError, ValueError):
@@ -102,7 +106,7 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
             ratio_day_fraction = ratio_hours / 24.0
 
         elif time_mode == "fixed":
-            fixed_hours_raw = req.form.get("fixed_hours")
+            fixed_hours_raw = form.get("fixed_hours")
             try:
                 fixed_hours = float(fixed_hours_raw)
             except (TypeError, ValueError):
@@ -116,7 +120,7 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
             fixed_hours_fraction = fixed_hours / 24.0
 
         # 追加の休憩時間を取得
-        additional_breaks_json = req.form.get("additional_breaks")
+        additional_breaks_json = form.get("additional_breaks")
         if additional_breaks_json:
             try:
                 additional_breaks = json.loads(additional_breaks_json)
@@ -125,7 +129,7 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
 
         # アップロードファイルの分類と検証
         logging.info("Checking CSV files...")
-        csv_files = [f for f in files if f.filename.lower().endswith(".csv")]
+        csv_files = [f for f in uploaded_files if f.filename.lower().endswith(".csv")]
         logging.info(f"CSV files found: {len(csv_files)}")
         if len(csv_files) != 2:
             logging.warning(f"Invalid number of CSV files: {len(csv_files)}")
