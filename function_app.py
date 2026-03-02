@@ -49,8 +49,28 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
     
     try:
         logging.info("=== Starting generate_timesheet ===")
+        logging.info(f"Request method: {req.method}")
+        logging.info(f"Content-Type: {req.headers.get('Content-Type')}")
+        
         # フォームデータの取得
-        files = req.files.getlist("files")
+        logging.info(f"req.files type: {type(req.files)}")
+        logging.info(f"req.files dir: {dir(req.files)}")
+        
+        try:
+            files = req.files.getlist("files")
+            logging.info(f"getlist succeeded, files: {files}")
+        except AttributeError as ae:
+            logging.error(f"getlist not available: {ae}")
+            # Try alternative approach
+            files = []
+            for key in req.files.keys():
+                logging.info(f"File key: {key}")
+                files.extend(req.files.getlist(key))
+            logging.info(f"Files collected via keys: {files}")
+        except Exception as fe:
+            logging.error(f"Error getting files: {fe}")
+            raise
+            
         logging.info(f"Files received: {len(files) if files else 0}")
         name = req.form.get("name")
         eid = req.form.get("eid")
