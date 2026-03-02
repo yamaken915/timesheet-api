@@ -1,0 +1,8 @@
+flask
+pandas
+openpyxl
+flask-cors
+gunicorn
+opencensus-ext-azure
+opencensus-ext-flask
+opencensus-ext-requests
