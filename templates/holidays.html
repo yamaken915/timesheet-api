@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>祝日メンテナンス</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2em;
+      background-color: #f9f9f9;
+    }
+    h2 {
+      color: #2c3e50;
+    }
+    button {
+      background-color: #3498db;
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      margin: 8px 0;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    #resultMsg {
+      margin-top: 1em;
+      font-weight: bold;
+    }
+  </style>
+  <script src="/static/holidays.js" defer></script>
+</head>
+<body>
+  <h2>📅 祝日メンテナンス</h2>
+
+  <div>
+    <button onclick="downloadCSV()">📥 現在の祝日CSVをダウンロード</button>
+  </div>
+
+  <hr>
+
+  <div>
+    <label>📤 編集済CSVファイルをアップロード：</label><br>
+    <input type="file" id="csvInput" accept=".csv" />
+    <button onclick="uploadCSV()">アップロード</button>
+  </div>
+
+  <p id="resultMsg"></p>
+</body>
+</html>
