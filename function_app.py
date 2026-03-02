@@ -9,6 +9,8 @@ import io
 import logging
 import json
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Azure Functions アプリケーションの初期化
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -104,7 +106,7 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
             return add_cors_headers(response)
 
         # テンプレートファイルのパスを設定
-        template_path = os.path.join("templates", "Excel_templates", "タイムシート(yyyy_mm).xlsx")
+        template_path = os.path.join(BASE_DIR, "templates", "Excel_templates", "タイムシート(yyyy_mm).xlsx")
         if not os.path.exists(template_path):
             response = func.HttpResponse("テンプレートファイルが見つかりません", status_code=500)
             return add_cors_headers(response)
@@ -141,7 +143,7 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
         # 祝日データの読み込み
         holiday_dict = {}
         try:
-            with open("holidays.csv", encoding="utf-8") as f:
+            with open(os.path.join(BASE_DIR, "holidays.csv"), encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line: continue
@@ -280,7 +282,7 @@ def get_holidays(req: func.HttpRequest) -> func.HttpResponse:
     logging.info(f"Holidays API accessed with year parameter: {year}")
     
     try:
-        holidays_df = pd.read_csv('holidays.csv')
+        holidays_df = pd.read_csv(os.path.join(BASE_DIR, 'holidays.csv'))
         
         if year:
             year = int(year)
@@ -317,7 +319,7 @@ def holidays_ui(req: func.HttpRequest) -> func.HttpResponse:
     祝日管理画面を表示するエンドポイント
     """
     try:
-        with open("templates/holidays.html", "r", encoding="utf-8") as f:
+        with open(os.path.join(BASE_DIR, "templates", "holidays.html"), "r", encoding="utf-8") as f:
             html_content = f.read()
         response = func.HttpResponse(
             body=html_content,
@@ -335,7 +337,7 @@ def download_holidays(req: func.HttpRequest) -> func.HttpResponse:
     祝日データ（holidays.csv）をダウンロードするエンドポイント
     """
     try:
-        with open("holidays.csv", "rb") as f:
+        with open(os.path.join(BASE_DIR, "holidays.csv"), "rb") as f:
             csv_content = f.read()
         response = func.HttpResponse(
             body=csv_content,
@@ -360,7 +362,7 @@ def upload_holidays(req: func.HttpRequest) -> func.HttpResponse:
     try:
         file = req.files.get("file")
         if file and file.filename.endswith(".csv"):
-            with open("holidays.csv", "wb") as f:
+            with open(os.path.join(BASE_DIR, "holidays.csv"), "wb") as f:
                 f.write(file.stream.read())
             response = func.HttpResponse("アップロード完了", status_code=200)
         else:
