@@ -48,13 +48,17 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
         return add_cors_headers(response)
     
     try:
+        logging.info("=== Starting generate_timesheet ===")
         # フォームデータの取得
         files = req.files.getlist("files")
+        logging.info(f"Files received: {len(files) if files else 0}")
         name = req.form.get("name")
         eid = req.form.get("eid")
         organization = req.form.get("organization")
+        logging.info(f"Form data - name: {name}, org: {organization}")
         year = int(req.form.get("year"))
         month = int(req.form.get("month"))
+        logging.info(f"Date - year: {year}, month: {month}")
         task = req.form.get("task")
         time_mode = req.form.get("time_mode", "none")  # "none", "ratio", "fixed"
         ratio_day_fraction = None
@@ -100,19 +104,30 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
                 additional_breaks = []
 
         # アップロードファイルの分類と検証
+        logging.info("Checking CSV files...")
         csv_files = [f for f in files if f.filename.lower().endswith(".csv")]
+        logging.info(f"CSV files found: {len(csv_files)}")
         if len(csv_files) != 2:
+            logging.warning(f"Invalid number of CSV files: {len(csv_files)}")
             response = func.HttpResponse("CSV2個をアップロードしてください", status_code=400)
             return add_cors_headers(response)
 
         # テンプレートファイルのパスを設定
+        logging.info("Checking template file...")
         template_path = os.path.join(BASE_DIR, "templates", "Excel_templates", "タイムシート(yyyy_mm).xlsx")
+        logging.info(f"Template path: {template_path}")
+        logging.info(f"BASE_DIR: {BASE_DIR}")
+        logging.info(f"Template exists: {os.path.exists(template_path)}")
         if not os.path.exists(template_path):
+            logging.error("Template file not found!")
             response = func.HttpResponse("テンプレートファイルが見つかりません", status_code=500)
             return add_cors_headers(response)
 
         # CSV読み込み＆データ結合処理
+        logging.info("Reading CSV files...")
         df_all = pd.concat([pd.read_csv(f.stream) for f in csv_files], ignore_index=True)
+        logging.info(f"Total rows: {len(df_all)}")
+        logging.info(f"Columns: {df_all.columns.tolist()}")
         
         # 日時データの型変換（エラーの場合はNaTに変換）
         df_all["Work start"] = pd.to_datetime(df_all["Work start"], errors="coerce")
@@ -270,6 +285,7 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
         
     except Exception as e:
         logging.error(f"Error in generate_timesheet: {str(e)}")
+        logging.exception("Full traceback:")
         response = func.HttpResponse(f"エラーが発生しました: {str(e)}", status_code=500)
         return add_cors_headers(response)
 
