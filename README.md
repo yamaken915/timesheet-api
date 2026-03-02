@@ -11,16 +11,31 @@ MyTIMから出力した勤怠CSV（前半・後半）を使って、
 
 ## 🌐 システム構成
 
+### 本番環境（Production）
+
 | 種類 | URL | ホスティング |
 |------|-----|-------------|
-| 🎨 **フロントエンド（UI）** | [https://yamaken999.github.io/timesheet-frontend/](https://yamaken999.github.io/timesheet-frontend/) | GitHub Pages |
-| 🛠 **API（Flask）** | [https://timesheet-api-prod.azurewebsites.net/](https://timesheet-api-prod.azurewebsites.net/) | **Microsoft Azure App Service** |
-| 🎌 **祝日メンテナンスUI** | [https://timesheet-api-prod.azurewebsites.net/holidays-ui](https://timesheet-api-prod.azurewebsites.net/holidays-ui) | **Microsoft Azure App Service** |
+| 🎨 **フロントエンド（UI）** | [https://gray-grass-06e4f8300.2.azurestaticapps.net](https://gray-grass-06e4f8300.2.azurestaticapps.net) | **Azure Static Web Apps** |
+| 🛠 **API（Flask）** | [https://timesheet-api-prod.azurewebsites.net/](https://timesheet-api-prod.azurewebsites.net/) | **Azure App Service** |
+| 🎌 **祝日メンテナンスUI** | [https://timesheet-api-prod.azurewebsites.net/holidays-ui](https://timesheet-api-prod.azurewebsites.net/holidays-ui) | **Azure App Service** |
 | 📊 **ログ・監視** | Application Insights | **Microsoft Azure** |
+
+### ステージング環境（Staging）
+
+| 種類 | URL | 用途 |
+|------|-----|------|
+| 🧪 **フロントエンド（プレビュー）** | [https://gray-grass-06e4f8300-1.eastasia.2.azurestaticapps.net](https://gray-grass-06e4f8300-1.eastasia.2.azurestaticapps.net) | 試験的な改修のテスト環境 |
+| 🧪 **API（ステージング）** | *(未デプロイ)* | GitHub PR #1 による自動デプロイ準備完了 |
+
+**ステージング環境の使い方:**
+- `staging` ブランチにプッシュすると自動的にデプロイ
+- [PR #1 (Frontend)](https://github.com/yamaken915/timesheet-frontend/pull/1) / [PR #1 (API)](https://github.com/yamaken915/timesheet-api/pull/1) 経由で管理
+- テスト完了後PRをクローズすることで環境を削除（マージしない）
 
 ### 🔄 CI/CD パイプライン
 - **GitHub Actions** による自動デプロイ
-- `master` ブランチへのプッシュで自動的にAzure App Serviceにデプロイ
+- `master` ブランチ → 本番環境に自動デプロイ
+- `staging` ブランチ → ステージング環境に自動デプロイ（PR経由）
 
 ---
 
