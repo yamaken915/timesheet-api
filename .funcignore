@@ -1,0 +1,10 @@
+.git*
+.vscode
+.venv
+__pycache__
+*.pyc
+.env
+local.settings.json
+test_app.py
+azure-setup.ps1
+publish-profile*.xml

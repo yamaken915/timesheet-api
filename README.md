@@ -11,16 +11,31 @@ MyTIMから出力した勤怠CSV（前半・後半）を使って、
 
 ## 🌐 システム構成
 
+### 本番環境（Production）
+
 | 種類 | URL | ホスティング |
 |------|-----|-------------|
-| 🎨 **フロントエンド（UI）** | [https://yamaken999.github.io/timesheet-frontend/](https://yamaken999.github.io/timesheet-frontend/) | GitHub Pages |
-| 🛠 **API（Flask）** | [https://timesheet-api-prod.azurewebsites.net/](https://timesheet-api-prod.azurewebsites.net/) | **Microsoft Azure App Service** |
-| 🎌 **祝日メンテナンスUI** | [https://timesheet-api-prod.azurewebsites.net/holidays-ui](https://timesheet-api-prod.azurewebsites.net/holidays-ui) | **Microsoft Azure App Service** |
+| 🎨 **フロントエンド（UI）** | [https://gray-grass-06e4f8300.2.azurestaticapps.net](https://gray-grass-06e4f8300.2.azurestaticapps.net) | **Azure Static Web Apps** |
+| 🛠 **API（Flask）** | [https://timesheet-api-prod.azurewebsites.net/](https://timesheet-api-prod.azurewebsites.net/) | **Azure App Service** |
+| 🎌 **祝日メンテナンスUI** | [https://timesheet-api-prod.azurewebsites.net/holidays-ui](https://timesheet-api-prod.azurewebsites.net/holidays-ui) | **Azure App Service** |
 | 📊 **ログ・監視** | Application Insights | **Microsoft Azure** |
+
+### ステージング環境（Staging）
+
+| 種類 | URL | 用途 |
+|------|-----|------|
+| 🧪 **フロントエンド（プレビュー）** | [https://gray-grass-06e4f8300-1.eastasia.2.azurestaticapps.net](https://gray-grass-06e4f8300-1.eastasia.2.azurestaticapps.net) | 試験的な改修のテスト環境 |
+| 🧪 **API（ステージング）** | *(未デプロイ)* | GitHub PR #1 による自動デプロイ準備完了 |
+
+**ステージング環境の使い方:**
+- `staging` ブランチにプッシュすると自動的にデプロイ
+- [PR #1 (Frontend)](https://github.com/yamaken915/timesheet-frontend/pull/1) / [PR #1 (API)](https://github.com/yamaken915/timesheet-api/pull/1) 経由で管理
+- テスト完了後PRをクローズすることで環境を削除（マージしない）
 
 ### 🔄 CI/CD パイプライン
 - **GitHub Actions** による自動デプロイ
-- `master` ブランチへのプッシュで自動的にAzure App Serviceにデプロイ
+- `master` ブランチ → 本番環境に自動デプロイ
+- `staging` ブランチ → ステージング環境に自動デプロイ（PR経由）
 
 ---
 
@@ -64,9 +79,12 @@ timesheet-api/
 ### 操作手順：
 
 1. Web UI で氏名・EID・対象年月などを入力
-2. **CSV2枚のみ**をアップロード
-3. 「タイムシート作成」ボタンを押下
-4. 自動入力されたExcelファイルがダウンロードされます
+2. **割合モード** - 就業時間を固定割合で入力したい場合はONにして割合(%)を指定
+   - 例：60％を指定すると、K列に8時間×60%=4.8時間が固定出力
+   - G列には実際の就業時間とK列の差分が計算される
+3. **CSV2枚をアップロード**（MyTIMの前半・後半）
+4. 「タイムシート作成」ボタンを押下
+5. 自動入力されたExcelファイルがダウンロードされます
 
 ---
 
@@ -77,10 +95,10 @@ timesheet-api/
 - **🆕 月末対応**: 28日、29日、30日の月は不要な日付行を自動削除
 - **🆕 残業時間計算**: 就業時間から基準労働時間（実働日×8時間）を差し引いた残業時間を自動計算
 - **🆕 作業期間設定**: D9セルに月初、G9セルに月末日を自動設定
+- **🆕 割合モード**: K列の就業時間を指定割合（0〜100%）に固定し、実際の就業時間との差分をG列に出力
 - **就業時間・休憩時間・残業**などを自動で計算
 - **土日祝を除く平日で空欄の場合、休暇**と記入
 - **祝日は祝日名が自動入力される**
-- **社長モードONで勤務時間に制限（4時間48分）を適用**
 - アップロードしたファイルはメモリ上に展開されるため、オンライン上には保存されません
 - 祝日はCSVで管理されており、だれでもメンテナンスできるようにしています
 

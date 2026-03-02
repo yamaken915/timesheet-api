@@ -2,8 +2,7 @@
 from flask import Flask, request, send_file, render_template
 from flask_cors import CORS
 from openpyxl import load_workbook
-from openpyxl.styles import Font
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import pandas as pd
 import tempfile
 import os
@@ -64,7 +63,21 @@ def generate_timesheet():
     year = int(request.form.get("year"))    # 年
     month = int(request.form.get("month"))  # 月
     task = request.form.get("task")         # 業務内容
-    president_mode = request.form.get("president") == "on"  # 社長モード（労働時間制限）
+    ratio_mode = request.form.get("ratio_mode") == "on"  # 割合モード（就業時間を割合で固定）
+    ratio_percent_raw = request.form.get("ratio_percent")
+    ratio_day_fraction = None
+
+    if ratio_mode:
+        try:
+            ratio_percent = float(ratio_percent_raw)
+        except (TypeError, ValueError):
+            return "就業時間割合は0〜100の数値で指定してください", 400
+
+        if ratio_percent < 0 or ratio_percent > 100:
+            return "就業時間割合は0〜100の範囲で指定してください", 400
+
+        ratio_hours = 8.0 * ratio_percent / 100.0
+        ratio_day_fraction = ratio_hours / 24.0
 
     # アップロードファイルの分類と検証
     csv_files = [f for f in files if f.filename.lower().endswith(".csv")]
@@ -94,9 +107,8 @@ def generate_timesheet():
     ws = wb.worksheets[0]  # 最初のワークシートを取得
     ws.title = f"{month}月"  # シート名を設定
 
-    # 月の日数と労働時間制限を設定
+    # 月の日数を設定
     days_in_month = pd.Timestamp(year=year, month=month, day=1).days_in_month
-    limit_timedelta = timedelta(hours=4, minutes=48)  # 社長モード用の労働時間制限
 
     # 基本情報の設定
     d9_date = date(year, month, 1)  # 月初日
@@ -148,12 +160,11 @@ def generate_timesheet():
             total_break_duration = (valid_breaks["Break end"] - valid_breaks["Break start"]).sum()
             total_work_duration = (end_time - start_time) - total_break_duration
 
-            # 社長モード時の労働時間制限処理
-            if president_mode and total_work_duration > limit_timedelta:
-                ws[f"K{row}"] = limit_timedelta.total_seconds() / 86400  # 制限時間を記入
-                excess = total_work_duration - limit_timedelta
-                ws[f"G{row}"] = excess.total_seconds() / 86400  # 超過時間を記入
-                ws[f"G{row}"].font = Font(size=12)  # フォントサイズ設定
+            if ratio_mode:
+                ws[f"K{row}"] = ratio_day_fraction  # 実働時間（割合固定）
+                # G列：実際の就業時間 - K列の割合固定時間の差分
+                actual_work_hours_decimal = total_work_duration.total_seconds() / 86400
+                ws[f"G{row}"] = actual_work_hours_decimal - ratio_day_fraction
             else:
                 ws[f"K{row}"] = total_work_duration.total_seconds() / 86400  # 実働時間
                 ws[f"G{row}"] = None  # 超過時間なし
