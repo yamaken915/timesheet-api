@@ -52,24 +52,34 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
     try:
         logging.info("=== Starting generate_timesheet ===")
         logging.info(f"Request method: {req.method}")
-        logging.info(f"Content-Type: {req.headers.get('Content-Type')}")
+        content_type = req.headers.get('Content-Type', '')
+        logging.info(f"Content-Type: {content_type}")
         
         # werkzeugを使ってフォームデータをパース
+        body = req.get_body()
+        logging.info(f"Body length: {len(body)}")
+        
         environ = {
             'REQUEST_METHOD': req.method,
-            'CONTENT_TYPE': req.headers.get('Content-Type', ''),
-            'CONTENT_LENGTH': req.headers.get('Content-Length', '0'),
-            'wsgi.input': io.BytesIO(req.get_body())
+            'CONTENT_TYPE': content_type,
+            'CONTENT_LENGTH': str(len(body)),
+            'wsgi.input': io.BytesIO(body),
+            'wsgi.errors': io.BytesIO(),
+            'wsgi.url_scheme': 'https',
+            'SERVER_NAME': 'timesheet-api-func-free.azurewebsites.net',
+            'SERVER_PORT': '443',
+            'PATH_INFO': '/api/upload'
         }
         
-        headers = Headers()
-        for key, value in req.headers.items():
-            headers[key] = value
-            
-        stream, form, files = parse_form_data(environ)
-        
-        logging.info(f"Form keys: {list(form.keys())}")
-        logging.info(f"Files keys: {list(files.keys())}")
+        try:
+            stream, form, files = parse_form_data(environ)
+            logging.info(f"Form parsed successfully")
+            logging.info(f"Form keys: {list(form.keys())}")
+            logging.info(f"Files keys: {list(files.keys())}")
+        except Exception as parse_error:
+            logging.error(f"Error parsing form data: {parse_error}")
+            logging.exception("Parse traceback:")
+            raise
         
         # ファイルの取得
         uploaded_files = files.getlist("files")
