@@ -55,6 +55,8 @@ def generate_timesheet():
     Excelテンプレートに反映して新しいファイルを生成する
     """
     
+    import json
+    
     # フォームデータの取得
     files = request.files.getlist("files")  # アップロードされたファイルリスト
     name = request.form.get("name")         # 氏名
@@ -63,11 +65,14 @@ def generate_timesheet():
     year = int(request.form.get("year"))    # 年
     month = int(request.form.get("month"))  # 月
     task = request.form.get("task")         # 業務内容
-    ratio_mode = request.form.get("ratio_mode") == "on"  # 割合モード（就業時間を割合で固定）
-    ratio_percent_raw = request.form.get("ratio_percent")
+    time_mode = request.form.get("time_mode", "none")  # "none", "ratio", "fixed"
     ratio_day_fraction = None
+    fixed_hours_fraction = None
+    additional_breaks = []
 
-    if ratio_mode:
+    # 時間モードのバリデーション
+    if time_mode == "ratio":
+        ratio_percent_raw = request.form.get("ratio_percent")
         try:
             ratio_percent = float(ratio_percent_raw)
         except (TypeError, ValueError):
@@ -78,6 +83,26 @@ def generate_timesheet():
 
         ratio_hours = 8.0 * ratio_percent / 100.0
         ratio_day_fraction = ratio_hours / 24.0
+
+    elif time_mode == "fixed":
+        fixed_hours_raw = request.form.get("fixed_hours")
+        try:
+            fixed_hours = float(fixed_hours_raw)
+        except (TypeError, ValueError):
+            return "固定時間は0以上の数値で指定してください", 400
+
+        if fixed_hours < 0:
+            return "固定時間は0以上で指定してください", 400
+
+        fixed_hours_fraction = fixed_hours / 24.0
+
+    # 追加の休憩時間を取得
+    additional_breaks_json = request.form.get("additional_breaks")
+    if additional_breaks_json:
+        try:
+            additional_breaks = json.loads(additional_breaks_json)
+        except json.JSONDecodeError:
+            additional_breaks = []
 
     # アップロードファイルの分類と検証
     csv_files = [f for f in files if f.filename.lower().endswith(".csv")]
@@ -158,13 +183,25 @@ def generate_timesheet():
             # 休憩時間の計算
             valid_breaks = day_data.dropna(subset=["Break start", "Break end"])
             total_break_duration = (valid_breaks["Break end"] - valid_breaks["Break start"]).sum()
+
+            # 追加の休憩時間を加算
+            for additional_break in additional_breaks:
+                if additional_break["date"] == date_str and "hours" in additional_break:
+                    additional_break_minutes = int(additional_break["hours"] * 60)
+                    total_break_duration += pd.Timedelta(minutes=additional_break_minutes)
+
             total_work_duration = (end_time - start_time) - total_break_duration
 
-            if ratio_mode:
+            if time_mode == "ratio":
                 ws[f"K{row}"] = ratio_day_fraction  # 実働時間（割合固定）
                 # G列：実際の就業時間 - K列の割合固定時間の差分
                 actual_work_hours_decimal = total_work_duration.total_seconds() / 86400
                 ws[f"G{row}"] = actual_work_hours_decimal - ratio_day_fraction
+            elif time_mode == "fixed":
+                ws[f"K{row}"] = fixed_hours_fraction  # 実働時間（固定時間）
+                # G列：実際の就業時間 - 固定時間の差分
+                actual_work_hours_decimal = total_work_duration.total_seconds() / 86400
+                ws[f"G{row}"] = actual_work_hours_decimal - fixed_hours_fraction
             else:
                 ws[f"K{row}"] = total_work_duration.total_seconds() / 86400  # 実働時間
                 ws[f"G{row}"] = None  # 超過時間なし
