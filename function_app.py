@@ -76,10 +76,14 @@ def generate_timesheet(req: func.HttpRequest) -> func.HttpResponse:
             logging.info(f"Form parsed successfully")
             logging.info(f"Form keys: {list(form.keys())}")
             logging.info(f"Files keys: {list(files.keys())}")
-            
-            # ファイルの取得
-            uploaded_files = files.getlist("files")
-            logging.info(f"Files received: {len(uploaded_files)}")
+        except Exception as parse_error:
+            logging.error(f"Error parsing form data: {parse_error}")
+            logging.exception("Parse traceback:")
+            raise
+        
+        # ファイルの取得
+        uploaded_files = files.getlist("files")
+        logging.info(f"Files received: {len(uploaded_files)}")
         
         # フォームデータの取得
         name = form.get("name")
