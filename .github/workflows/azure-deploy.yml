@@ -40,7 +40,7 @@ jobs:
     - name: 'Deploy to Azure Web App'
       uses: azure/webapps-deploy@v2
       with:
-        app-name: 'timesheet-api-webapp'
+        app-name: 'timesheet-api-prod'
         slot-name: 'production'
         publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: '.'
